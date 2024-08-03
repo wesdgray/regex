@@ -2,11 +2,24 @@ use std::env;
 use std::io;
 use std::process;
 
+fn match_square_bracket(pattern: &str) -> bool {
+    pattern.chars().take(1).next().unwrap_or(' ') == '[' && pattern.chars().last().unwrap_or(' ') == ']'
+}
 fn match_pattern(input_line: &str, pattern: &str) -> bool {
     match pattern {
         _ if pattern.chars().count() == 1 => input_line.contains(pattern),
         "\\d" => input_line.contains(|x: char| x.is_ascii_digit()),
         "\\w" => input_line.contains(|x: char| x.is_alphanumeric()),
+        m if match_square_bracket(pattern) => {
+            let len = m.len();
+            let chars: String = m[1..len].into();
+            for c in chars.chars() {
+                if input_line.contains(c) {
+                    return true;
+                }
+            }
+            return false;
+        }
         _ => panic!("unhandled pattern: {}", pattern)
     }
 }
