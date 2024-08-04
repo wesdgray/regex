@@ -2,24 +2,35 @@ use std::env;
 use std::io;
 use std::process;
 
-fn match_square_bracket(pattern: &str) -> bool {
-    pattern.chars().take(1).next().unwrap_or(' ') == '[' && pattern.chars().last().unwrap_or(' ') == ']'
+fn match_positive_group(pattern: &str) -> bool {
+    pattern.chars().nth(0).unwrap_or(' ') == '[' && pattern.chars().last().unwrap_or(' ') == ']'
+}
+fn match_negative_group(pattern: &str) -> bool {
+    match_positive_group(pattern) && pattern.chars().nth(1).unwrap_or(' ') == '^'
 }
 fn match_pattern(input_line: &str, pattern: &str) -> bool {
     match pattern {
-        _ if pattern.chars().count() == 1 => input_line.contains(pattern),
         "\\d" => input_line.contains(|x: char| x.is_ascii_digit()),
         "\\w" => input_line.contains(|x: char| x.is_alphanumeric()),
-        m if match_square_bracket(pattern) => {
-            let len = m.len();
-            let chars: String = m[1..len].into();
+        _ if pattern.chars().count() == 1 => input_line.contains(pattern),
+        m if match_negative_group(pattern) => {
+            let chars: String = m[2..].into();
+            for c in chars.chars() {
+                if input_line.contains(c) {
+                    return false;
+                }
+            }
+            return true;
+        },
+        m if match_positive_group(pattern) => {
+            let chars: String = m[1..].into();
             for c in chars.chars() {
                 if input_line.contains(c) {
                     return true;
                 }
             }
             return false;
-        }
+        },
         _ => panic!("unhandled pattern: {}", pattern)
     }
 }
