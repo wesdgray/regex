@@ -175,14 +175,6 @@ fn match_star() {
     //     _ => panic!("unhandled pattern: {}", pattern)
     // }
 
-fn match_positive_group(pattern: &str) -> bool {
-    pattern.chars().nth(0).unwrap_or(' ') == '[' && pattern.chars().last().unwrap_or(' ') == ']'
-}
-
-fn match_negative_group(pattern: &str) -> bool {
-    match_positive_group(pattern) && pattern.chars().nth(1).unwrap_or(' ') == '^'
-}
-
 // Usage: echo <input_text> | your_program.sh -E <pattern>
 fn main() {
     // You can use print statements as follows for debugging, they'll be visible when running tests.
