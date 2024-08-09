@@ -1,3 +1,4 @@
+use core::fmt;
 use std::env;
 use std::io;
 use std::iter::Cloned;
@@ -15,16 +16,21 @@ enum RegularExpressionElement {
 }
 
 fn match_pattern(input_line: &str, pattern: &str) -> bool {
-    let p = compile_pattern(pattern);
+    let p = compile_pattern(pattern).unwrap();
     println!("{:?}", p);
     let mut c = input_line.chars().peekable();
+    if let Some(RegularExpressionElement::Literal('^')) = p.first() {
+        let mut p_iter = p.iter().map(Clone::clone).peekable();
+        p_iter.next();
+        return match_here(c, p_iter)
+    }
     loop {
         println!("{:?}", c.clone());
         let p_iter = p.iter().map(Clone::clone).peekable();
         if match_here(c.clone(), p_iter) {
             return true;
         }
-        if let Some(_) = c.peek() {
+        if c.peek().is_some() {
             c.next();
         } else {
             return false;
@@ -32,12 +38,29 @@ fn match_pattern(input_line: &str, pattern: &str) -> bool {
     }
 }
 
-fn compile_pattern(pattern: &str) -> Vec<RegularExpressionElement> {
+#[derive(Debug)]
+enum RegexError {
+    PatternError,
+}
+
+impl std::error::Error for RegexError {}
+impl fmt::Display for RegexError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RegexError::PatternError => write!(f, "Pattern Error"),
+        }
+    }
+}
+
+fn compile_pattern(pattern: &str) -> Result<Vec<RegularExpressionElement>, RegexError> {
     use RegularExpressionElement::*;
     let mut compiled: Vec<RegularExpressionElement> = Vec::new();
     let mut chars = pattern.chars().peekable();
     while let (Some(cur), next) = (chars.next(), chars.peek()) {
         let token = match (cur, next) {
+            ('*', Some('*')) => {
+                return Err(RegexError::PatternError);
+            }
             ('[', Some('^')) => {
                 let group_members: String = chars.by_ref()
                      .take_while(|x| *x != ']')
@@ -63,7 +86,7 @@ fn compile_pattern(pattern: &str) -> Vec<RegularExpressionElement> {
         };
         compiled.push(token);
     }
-    compiled
+    Ok(compiled)
 }
 
 fn match_here(mut input: impl Iterator<Item = char>, mut regex: std::iter::Peekable<impl Iterator<Item = RegularExpressionElement>>) -> bool {
