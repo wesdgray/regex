@@ -1,9 +1,7 @@
 use core::fmt;
 use std::env;
 use std::io;
-use std::iter::Cloned;
 use std::process;
-use std::slice::Iter;
 
 #[derive(Debug, Clone)]
 enum RegularExpressionElement {
@@ -24,18 +22,15 @@ fn match_pattern(input_line: &str, pattern: &str) -> bool {
         p_iter.next();
         return match_here(c, p_iter)
     }
-    loop {
+    while c.peek().is_some() {
         println!("{:?}", c.clone());
         let p_iter = p.iter().map(Clone::clone).peekable();
         if match_here(c.clone(), p_iter) {
             return true;
         }
-        if c.peek().is_some() {
-            c.next();
-        } else {
-            return false;
-        }
+        c.next();
     }
+    false
 }
 
 #[derive(Debug)]
@@ -91,89 +86,23 @@ fn compile_pattern(pattern: &str) -> Result<Vec<RegularExpressionElement>, Regex
 
 fn match_here(mut input: impl Iterator<Item = char>, mut regex: std::iter::Peekable<impl Iterator<Item = RegularExpressionElement>>) -> bool {
     use RegularExpressionElement::*;
-    return match (input.next(), regex.peek()) {
-        (None, Some(Literal('$'))) => true,
-        (_, None) => true, 
+    return match (input.next(), regex.peek().cloned()) {
+        (None, Some(Literal('$'))) => regex.skip(1).peekable().peek().is_none(),
+        (_, None) => true, // consuming all of the regex pattern indicates a match 
         (None, _) => false,
         (Some(one_input), Some(re)) => {
+            regex.next();
             match re {
-                Literal(c) => {
-                    if *c == one_input {
-                        regex.next();
-                        return match_here(input, regex);
-                    } else {
-                        return false;
-                    }
-                },
-                Digit => {
-                    if one_input.is_ascii_digit() {
-                        regex.next();
-                        return match_here(input, regex);
-                    } else {
-                        return false;
-                    }
-                },
-                Alphanumeric => {
-                    if one_input.is_alphanumeric() {
-                        regex.next();
-                        return match_here(input, regex);
-                    } else {
-                        return false;
-                    }
-                },
-                PositiveGroup(members) => {
-                    if members.contains(one_input) {
-                        regex.next();
-                        return match_here(input, regex);
-                    } else {
-                        return false;
-                    }
-                },
-                NegativeGroup(members) => {
-                    if !members.contains(one_input) {
-                        regex.next();
-                        return match_here(input, regex);
-                    } else {
-                        return false;
-                    }
-                }
+                Literal(c) if c == one_input => match_here(input, regex),
+                Digit if one_input.is_ascii_digit() => match_here(input, regex),
+                Alphanumeric if one_input.is_alphanumeric() => match_here(input, regex),
+                PositiveGroup(members) if members.contains(one_input) => match_here(input, regex),  // [abc]
+                NegativeGroup(members) if !members.contains(one_input) => match_here(input, regex), // [^abc]
                 _ => false
-
             }
         }
     };
 }
-fn match_star() {
-
-}
-    // if let y = pattern.chars().nth(0) {
-    //     // everything
-    // }
-    // let x = pattern[1..];
-    // match pattern {
-    //     "\\d" => input_line.contains(|x: char| x.is_ascii_digit()),
-    //     "\\w" => input_line.contains(|x: char| x.is_alphanumeric()),
-    //     _ if pattern.chars().count() == 1 => input_line.contains(pattern),
-    //     m if match_negative_group(pattern) => {
-    //         let chars: String = m[2..].into();
-    //         for c in chars.chars() {
-    //             if input_line.contains(c) {
-    //                 return false;
-    //             }
-    //         }
-    //         return true;
-    //     },
-    //     m if match_positive_group(pattern) => {
-    //         let chars: String = m[1..].into();
-    //         for c in chars.chars() {
-    //             if input_line.contains(c) {
-    //                 return true;
-    //             }
-    //         }
-    //         return false;
-    //     },
-    //     _ => panic!("unhandled pattern: {}", pattern)
-    // }
 
 // Usage: echo <input_text> | your_program.sh -E <pattern>
 fn main() {
